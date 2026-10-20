@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Ma Boutique · Sélection de produits utiles</title>
+<meta name="description" content="Une sélection de modèles numériques et de produits utiles proposés par des partenaires. L'achat se fait chez le partenaire.">
+<meta name="theme-color" content="#1d3557">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="top"><div class="wrap">
+  <a class="brand" id="brand" href="index.html">Ma Boutique</a>
+  <nav class="nav"><a href="#catalogue">Catalogue</a><a href="#affiliation">Affiliation</a></nav>
+</div></header>
+
+<section class="hero"><div class="wrap">
+  <h1 id="h-title">Trouve le bon produit, au bon endroit</h1>
+  <p id="h-text">Nous sélectionnons des modèles numériques et des produits utiles proposés par des partenaires. L'achat se fait directement chez le partenaire.</p>
+  <form id="sf" class="search" role="search">
+    <input id="q" type="search" placeholder="Rechercher un produit…" maxlength="60" aria-label="Rechercher un produit">
+    <button class="btn btn-a" type="submit">Rechercher</button>
+  </form>
+</div></section>
+
+<main class="wrap">
+  <div id="demo" class="notice" hidden>
+    <b>Catalogue de démonstration :</b> les produits marqués « Exemple » ne sont pas réels. Ils seront remplacés par de vrais produits partenaires.
+  </div>
+
+  <section id="catalogue" class="sec">
+    <h2>Catalogue</h2>
+    <div class="filters">
+      <div id="cats" class="chips"></div>
+      <select id="price" class="sel" aria-label="Filtrer par prix">
+        <option value="">Tous les prix</option>
+        <option value="0-10">Moins de 10 €</option>
+        <option value="10-30">10 € à 30 €</option>
+        <option value="30-100">30 € à 100 €</option>
+        <option value="100-">Plus de 100 €</option>
+      </select>
+    </div>
+    <div id="grid" class="grid"><div class="empty">Chargement…</div></div>
+  </section>
+
+  <section id="affiliation" class="sec">
+    <h2>Transparence sur l'affiliation</h2>
+    <div class="notice" id="aff-notice">Ce site peut recevoir une commission si vous effectuez un achat via ce lien. Cela ne change pas le prix que vous payez.</div>
+    <p class="meta">Les prix et la disponibilité sont ceux du partenaire et peuvent changer : vérifie-les sur sa page avant d'acheter.</p>
+  </section>
+</main>
+
+<footer class="foot"><div class="wrap">
+  <b id="fbrand">Ma Boutique</b>
+  <p class="small" id="ftag">Une sélection de produits utiles, choisis avec soin</p>
+</div></footer>
+
+<script src="js/config.js"></script>
+<script>
+(function () {
+  var C = window.KOLINK_CONFIG || {};
+  var BASE = (C.SUPABASE_URL || "") + "/rest/v1/";
+  var HEAD = { apikey: C.SUPABASE_KEY || "" };
+  var $ = function (i) { return document.getElementById(i); };
+  var ALL = [], catId = null, term = "", range = "";
+  var fmt = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function get(path) {
+    return fetch(BASE + path, { headers: HEAD }).then(function (r) {
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return r.json();
+    });
+  }
+  function setText(id, t) { if (t) $(id).textContent = t; }
+  function empty(t) { return '<div class="empty">' + esc(t) + "</div>"; }
+
+  function loadSettings() {
+    return get("shop_settings?select=key,value").then(function (rows) {
+      var v = {};
+      rows.forEach(function (r) { v[r.key] = r.value; });
+      if (v.brand_name) {
+        setText("brand", v.brand_name);
+        setText("fbrand", v.brand_name);
+        document.title = v.brand_name + " · Sélection de produits utiles";
+      }
+      setText("h-title", v.home_title);
+      setText("h-text", v.home_text);
+      setText("ftag", v.tagline);
+      setText("aff-notice", v.affiliate_notice);
+    }).catch(function () {});
+  }
+
+  function loadCats() {
+    return get("shop_categories?select=id,name&active=eq.true&order=sort_order.asc").then(function (rows) {
+      $("cats").innerHTML = rows.map(function (c) {
+        return '<button class="chip" type="button" data-cat="' + c.id + '">' + esc(c.name) + "</button>";
+      }).join("");
+    }).catch(function () {});
+  }
+
+  function inRange(p) {
+    if (!range) return true;
+    if (p.price_eur == null) return false;
+    var parts = range.split("-");
+    var min = Number(parts[0]);
+    var max = parts[1] === "" ? Infinity : Number(parts[1]);
+    var v = Number(p.price_eur);
+    return v >= min && v <= max;
+  }
+
+  function card(p) {
+    var img = p.image_url
+      ? '<img src="' + esc(p.image_url) + '" alt="" loading="lazy" referrerpolicy="no-referrer">'
+      : "🛍️";
+    var price = p.price_eur != null ? fmt.format(Number(p.price_eur)) : "Prix chez le partenaire";
+    var cat = p.shop_categories ? p.shop_categories.name : "";
+    return '<a class="card" href="produit.html?id=' + encodeURIComponent(p.id) + '"><div class="ph">' + img + '</div><div class="cb">' +
+      (p.is_demo ? '<span class="tag demo">Exemple</span>' : '<span class="tag">' + esc(cat) + "</span>") +
+      "<h3>" + esc(p.title) + "</h3>" +
+      (p.partner_name ? '<div class="meta">Chez ' + esc(p.partner_name) + "</div>" : "") +
+      '<div class="price">' + esc(price) + "</div></div></a>";
+  }
+
+  function render() {
+    var t = term.toLowerCase();
+    var rows = ALL.filter(function (p) {
+      if (catId && p.category_id !== catId) return false;
+      if (!inRange(p)) return false;
+      if (t) {
+        var hay = (p.title + " " + (p.description || "") + " " + (p.partner_name || "")).toLowerCase();
+        if (hay.indexOf(t) < 0) return false;
+      }
+      return true;
+    });
+    $("grid").innerHTML = rows.length
+      ? rows.map(card).join("")
+      : empty(ALL.length ? "Aucun produit ne correspond à ta recherche." : "Le catalogue est vide pour le moment.");
+  }
+
+  function loadProducts() {
+    return get("shop_products?select=id,category_id,title,description,image_url,price_eur,partner_name,is_demo,shop_categories(name)" +
+      "&active=eq.true&order=created_at.desc&limit=100").then(function (rows) {
+      ALL = rows;
+      $("demo").hidden = !rows.some(function (p) { return p.is_demo; });
+      render();
+    }).catch(function () {
+      $("grid").innerHTML = empty("Impossible de charger le catalogue pour le moment. Réessaie plus tard.");
+    });
+  }
+
+  $("cats").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-cat]");
+    if (!b) return;
+    var id = Number(b.getAttribute("data-cat"));
+    catId = catId === id ? null : id;
+    var all = document.querySelectorAll("#cats .chip");
+    for (var i = 0; i < all.length; i++) all[i].classList.remove("on");
+    if (catId) b.classList.add("on");
+    render();
+  });
+  $("price").addEventListener("change", function () { range = $("price").value; render(); });
+  $("sf").addEventListener("submit", function (e) {
+    e.preventDefault();
+    term = $("q").value.trim().slice(0, 60);
+    render();
+    $("catalogue").scrollIntoView();
+  });
+
+  if (!C.SUPABASE_URL || !C.SUPABASE_KEY) {
+    $("grid").innerHTML = empty("Configuration manquante : vérifie js/config.js");
+    return;
+  }
+  loadSettings();
+  loadCats();
+  loadProducts();
+})();
+</script>
+</body>
+  </html>
