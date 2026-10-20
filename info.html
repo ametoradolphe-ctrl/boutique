@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Ma Boutique</title>
+<meta name="theme-color" content="#1d3557">
+<link rel="stylesheet" href="css/style.css">
+<style>
+.pg{max-width:700px;margin:16px auto;padding:0 16px 40px}
+.pg h2{margin:8px 0 4px}
+.pg h3{margin:22px 0 6px;font-size:1.05rem}
+.pg p,.pg li{line-height:1.65}
+.upd{color:var(--mu);font-size:.85rem;margin:0 0 12px}
+.tabs{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 14px}
+.tabs a{background:#fff;border:1px solid var(--bd);border-radius:999px;padding:7px 13px;font-size:.86rem}
+.tabs a.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="brand" id="brand" href="index.html">Ma Boutique</a>
+  <nav class="nav"><a href="index.html#catalogue">Catalogue</a></nav>
+</div></header>
+
+<div class="pg">
+  <div id="tabs" class="tabs"></div>
+  <h2 id="title"></h2>
+  <p id="upd" class="upd"></p>
+  <div id="body"><p class="meta">Chargement…</p></div>
+</div>
+
+<script src="js/config.js"></script>
+<script>
+(function () {
+  var C = window.KOLINK_CONFIG || {};
+  var $ = function (i) { return document.getElementById(i); };
+  var UPD = "Dernière mise à jour : octobre 2026";
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function ul(a) { return "<ul>" + a.map(function (x) { return "<li>" + x + "</li>"; }).join("") + "</ul>"; }
+
+  var PAGES = {
+    apropos: {
+      title: "À propos",
+      html: function (v) {
+        return "<p>{brand} est un site de sélection de modèles numériques et de produits utiles. Nous présentons des produits proposés par des partenaires. L’achat se fait directement sur le site du partenaire.</p>" +
+          "<h3>Notre approche</h3>" +
+          ul([
+            "Nous rédigeons nous-mêmes les descriptions des produits.",
+            "Nous ne publions ni faux avis ni faux compteurs de ventes.",
+            "Nous n’affirmons pas qu’un produit est disponible sans l’avoir vérifié, et les prix affichés sont indicatifs.",
+            "Nous ne promettons aucun résultat : un produit, c’est un outil, pas une garantie."
+          ]) +
+          "<h3>Transparence</h3>" +
+          "<p>{brand} peut recevoir une commission lorsque vous achetez via certains liens, sans surcoût pour vous. Tout est expliqué sur la page <a href=\"info.html?p=affiliation\"><u>Affiliation</u></a>.</p>" +
+          "<h3>Catalogue en construction</h3>" +
+          "<p>Tant que vous voyez des produits marqués « Exemple », le catalogue est en cours de construction : ces produits ne sont pas réels.</p>";
+      }
+    },
+    contact: {
+      title: "Contact",
+      html: function (v) {
+        var em = String(v.contact_email || "").trim();
+        var h = "<p>Une question, une suggestion, une demande liée à vos données personnelles ? Écrivez-nous.</p>";
+        if (em) h += '<div class="notice"><b>Email</b><br><a href="mailto:' + esc(em) + '"><u>' + esc(em) + "</u></a></div>";
+        else h += '<div class="notice">L’adresse de contact sera bientôt publiée.</div>';
+        h += "<p>Pour une commande, un paiement, une livraison ou un retour, adressez-vous au partenaire chez qui vous avez acheté : {brand} ne gère aucune commande.</p>";
+        return h;
+      }
+    },
+    mentions: {
+      title: "Mentions légales",
+      html: function (v) {
+        var n = String(v.publisher_name || "").trim();
+        var a = String(v.publisher_address || "").trim();
+        var em = String(v.contact_email || "").trim();
+        var h = "<h3>Éditeur du site</h3>";
+        if (n) {
+          h += "<p>" + esc(n) + (a ? "<br>" + esc(a) : "") + (em ? "<br>Contact : " + esc(em) : "") + "</p>";
+        } else {
+          h += "<p>Les informations d’identification de l’éditeur seront publiées avant l’ouverture commerciale du site.</p>";
+        }
+        h += "<p>Le directeur de la publication est l’éditeur du site.</p>" +
+          "<h3>Hébergement</h3>" +
+          "<p>Le site est hébergé par Cloudflare, Inc. (États-Unis), via Cloudflare Pages. La base de données est fournie par Supabase, avec des serveurs situés en Irlande (Union européenne).</p>" +
+          "<h3>Propriété intellectuelle</h3>" +
+          "<p>Les textes, la mise en page et les éléments graphiques propres à {brand} sont protégés. Les marques, noms et images des partenaires appartiennent à leurs titulaires respectifs.</p>" +
+          "<h3>Liens externes</h3>" +
+          "<p>{brand} renvoie vers des sites de partenaires dont il n’est pas responsable du contenu, des offres ni des pratiques.</p>";
+        return h;
+      }
+    },
+    confidentialite: {
+      title: "Politique de confidentialité",
+      html: function (v) {
+        return "<h3>1. Qui est responsable ?</h3>" +
+          "<p>L’éditeur du site, dont les coordonnées figurent dans les <a href=\"info.html?p=mentions\"><u>mentions légales</u></a>.</p>" +
+          "<h3>2. Les données concernées</h3>" +
+          ul([
+            "<b>Visiteurs :</b> vous ne créez pas de compte et ne remplissez aucun formulaire. Des données techniques (adresse IP, type de navigateur, pages demandées) sont traitées par nos prestataires pour faire fonctionner et sécuriser le site.",
+            "<b>Messages :</b> si vous nous écrivez par email, nous conservons votre message et votre adresse pour vous répondre.",
+            "<b>Administration :</b> le compte de l’éditeur (email et mot de passe, conservé sous forme sécurisée par notre prestataire d’authentification)."
+          ]) +
+          "<h3>3. Pourquoi et sur quelle base</h3>" +
+          "<p>Pour faire fonctionner et sécuriser le site, et pour répondre à vos messages, sur la base de notre intérêt légitime. Nous ne vendons pas vos données et nous ne faisons pas de publicité ciblée.</p>" +
+          "<h3>4. Destinataires</h3>" +
+          "<p>Nos prestataires techniques (hébergement du site et base de données). Quand vous cliquez sur un lien vers un partenaire, vous quittez {brand} : le partenaire applique sa propre politique de confidentialité.</p>" +
+          "<h3>5. Transferts hors de l’Union européenne</h3>" +
+          "<p>Certains prestataires peuvent traiter des données en dehors de l’Union européenne.</p>" +
+          "<h3>6. Durée de conservation</h3>" +
+          "<p>Les messages sont conservés le temps nécessaire pour traiter votre demande. Les données techniques sont conservées selon les règles de nos prestataires.</p>" +
+          "<h3>7. Vos droits</h3>" +
+          "<p>Vous pouvez demander l’accès à vos données, leur rectification, leur effacement, la limitation de leur traitement, vous y opposer, ou demander leur portabilité. Écrivez-nous via la page <a href=\"info.html?p=contact\"><u>Contact</u></a>. Vous pouvez aussi saisir l’autorité de protection des données de votre pays (en France, la CNIL).</p>" +
+          "<h3>8. Sécurité</h3>" +
+          "<p>Nous prenons des mesures raisonnables : accès à l’administration protégé par authentification, règles d’accès côté serveur, aucune clé secrète dans le code public. Aucun service en ligne ne peut garantir une sécurité absolue.</p>" +
+          "<h3>9. Modifications</h3>" +
+          "<p>Cette politique peut évoluer. La date de mise à jour figure en haut de la page.</p>";
+      }
+    },
+    conditions: {
+      title: "Conditions d’utilisation",
+      html: function (v) {
+        return "<h3>1. Objet</h3>" +
+          "<p>{brand} présente une sélection de produits proposés par des partenaires. Le site ne vend aucun produit et n’encaisse aucun paiement.</p>" +
+          "<h3>2. Achats chez les partenaires</h3>" +
+          "<p>Toute commande est conclue directement avec le partenaire, selon ses propres conditions. Le paiement, la livraison, le droit de rétractation, la garantie et le service client relèvent du partenaire.</p>" +
+          "<h3>3. Informations affichées</h3>" +
+          "<p>Nous nous efforçons de présenter des informations exactes, mais les prix, les offres et la disponibilité sont ceux du partenaire et peuvent changer sans préavis. Vérifiez-les sur sa page avant d’acheter.</p>" +
+          "<h3>4. Liens affiliés</h3>" +
+          "<p>Certains liens sont des liens affiliés : voir la page <a href=\"info.html?p=affiliation\"><u>Affiliation</u></a>.</p>" +
+          "<h3>5. Responsabilité</h3>" +
+          "<p>Dans les limites permises par la loi, {brand} n’est pas responsable du contenu, des offres ou des pratiques des sites partenaires, ni des litiges entre vous et un partenaire. La disponibilité du site n’est pas garantie.</p>" +
+          "<h3>6. Propriété intellectuelle</h3>" +
+          "<p>Les contenus propres à {brand} ne peuvent pas être copiés sans autorisation. Les marques et images des partenaires appartiennent à leurs titulaires.</p>" +
+          "<h3>7. Modifications</h3>" +
+          "<p>Ces conditions peuvent évoluer. Continuer à utiliser le site après une modification vaut acceptation.</p>" +
+          "<h3>8. Droit applicable</h3>" +
+          "<p>Ces conditions sont soumises au droit applicable à l’éditeur du site, sans préjudice des droits impératifs dont vous bénéficiez en tant que consommateur.</p>";
+      }
+    },
+    affiliation: {
+      title: "Affiliation",
+      html: function (v) {
+        return "<p>" + esc(v.affiliate_notice || "Ce site peut recevoir une commission si vous effectuez un achat via ce lien. Cela ne change pas le prix que vous payez.") + "</p>" +
+          "<h3>Comment ça marche</h3>" +
+          ul([
+            "Certains boutons « Voir l’offre » sont des liens affiliés.",
+            "Si vous achetez chez le partenaire après avoir cliqué, il peut nous verser une commission.",
+            "Cette commission ne s’ajoute pas à votre prix.",
+            "Ces liens sont signalés aux moteurs de recherche comme liens commerciaux."
+          ]) +
+          "<h3>Ce qui ne change pas</h3>" +
+          ul([
+            "Nous rédigeons nous-mêmes nos descriptions et nous ne publions ni faux avis ni faux compteurs de ventes.",
+            "Les prix affichés sont indicatifs : le prix valable est celui du partenaire au moment de l’achat."
+          ]) +
+          "<h3>Qui vend ?</h3>" +
+          "<p>Le partenaire. {brand} ne gère ni la commande, ni le paiement, ni la livraison, ni les retours.</p>";
+      }
+    },
+    cookies: {
+      title: "Cookies",
+      html: function (v) {
+        return "<p>Ce site n’utilise pas de cookies de mesure d’audience ni de publicité. Aucun bandeau de consentement n’est donc affiché.</p>" +
+          "<h3>Hébergement</h3>" +
+          "<p>Notre hébergeur peut utiliser des cookies ou technologies strictement nécessaires à la sécurité et au fonctionnement du site.</p>" +
+          "<h3>Sites des partenaires</h3>" +
+          "<p>Quand vous cliquez sur un lien affilié, il peut passer par un service de suivi du réseau d’affiliation, puis arriver sur le site du partenaire. Ces services et le partenaire peuvent déposer leurs propres cookies, notamment pour attribuer une éventuelle commission. Consultez leurs politiques.</p>" +
+          "<h3>Votre choix</h3>" +
+          "<p>Vous pouvez configurer votre navigateur pour refuser ou supprimer les cookies. Si nous ajoutons un jour un outil de mesure d’audience, cette page sera mise à jour et votre consentement sera demandé lorsque la loi l’exige.</p>";
+      }
+    }
+  };
+
+  var ORDER = ["apropos", "contact", "mentions", "confidentialite", "conditions", "affiliation", "cookies"];
+  var NAMES = { apropos: "À propos", contact: "Contact", mentions: "Mentions légales", confidentialite: "Confidentialité", conditions: "Conditions", affiliation: "Affiliation", cookies: "Cookies" };
+
+  var p = new URLSearchParams(location.search).get("p");
+  if (!PAGES[p]) p = "apropos";
+
+  $("title").textContent = PAGES[p].title;
+  $("upd").textContent = p === "contact" ? "" : UPD;
+  $("tabs").innerHTML = ORDER.map(function (k) {
+    return '<a href="info.html?p=' + k + '"' + (k === p ? ' class="on"' : "") + ">" + NAMES[k] + "</a>";
+  }).join("");
+
+  function show(v) {
+    var brand = String(v.brand_name || "Ma Boutique");
+    $("brand").textContent = brand;
+    document.title = PAGES[p].title + " · " + brand;
+    $("body").innerHTML = PAGES[p].html(v).replace(/\{brand\}/g, esc(brand));
+  }
+
+  fetch((C.SUPABASE_URL || "") + "/rest/v1/shop_settings?select=key,value", { headers: { apikey: C.SUPABASE_KEY || "" } })
+    .then(function (r) { return r.ok ? r.json() : []; })
+    .catch(function () { return []; })
+    .then(function (rows) {
+      var v = {};
+      (rows || []).forEach(function (r) { v[r.key] = r.value; });
+      show(v);
+    });
+})();
+</script>
+</body>
+  </html>
