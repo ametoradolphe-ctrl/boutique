@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Produit · Ma Boutique</title>
+<meta name="theme-color" content="#1d3557">
+<link rel="stylesheet" href="css/style.css">
+<style>
+.pg{max-width:680px;margin:16px auto;padding:0 16px 30px}
+.pic{position:relative;width:100%;aspect-ratio:4/3;background:#ece8dd;border-radius:16px;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:3.5rem}
+.pic img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover}
+.big{font-size:1.6rem;font-weight:800;color:var(--navy);margin:8px 0}
+.buy{display:block;width:100%;margin-top:14px;padding:15px;font-size:1.05rem}
+.off{background:#e4e0d6;color:#5d6b7a;text-align:center;border-radius:12px;padding:15px;margin-top:14px}
+.desc{white-space:pre-wrap}
+.back{display:inline-block;margin-bottom:10px;color:var(--mu);font-size:.92rem}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="brand" id="brand" href="index.html">Ma Boutique</a>
+  <nav class="nav"><a href="index.html#catalogue">Catalogue</a></nav>
+</div></header>
+
+<div class="pg">
+  <a class="back" href="index.html#catalogue">← Retour au catalogue</a>
+  <p id="state" class="meta">Chargement…</p>
+
+  <div id="view" class="hide">
+    <div id="pic" class="pic"></div>
+    <p><span id="cat" class="tag"></span> <span id="demo" class="tag demo hide">Exemple</span></p>
+    <h1 id="title" style="margin:6px 0;font-size:1.5rem;line-height:1.25"></h1>
+    <p id="partner" class="meta"></p>
+    <div id="price" class="big"></div>
+    <p class="meta">Prix indicatif, susceptible de changer : vérifie-le sur la page du partenaire avant d'acheter.</p>
+    <p id="desc" class="desc"></p>
+    <div id="buy"></div>
+    <div id="aff" class="notice">Ce site peut recevoir une commission si vous effectuez un achat via ce lien. Cela ne change pas le prix que vous payez.</div>
+  </div>
+</div>
+
+<script src="js/config.js"></script>
+<script>
+(function () {
+  var C = window.KOLINK_CONFIG || {};
+  var BASE = (C.SUPABASE_URL || "") + "/rest/v1/";
+  var HEAD = { apikey: C.SUPABASE_KEY || "" };
+  var $ = function (i) { return document.getElementById(i); };
+  var id = new URLSearchParams(location.search).get("id") || "";
+  var fmt = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
+
+  function get(path) {
+    return fetch(BASE + path, { headers: HEAD }).then(function (r) {
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return r.json();
+    });
+  }
+  function notFound() {
+    $("state").innerHTML = 'Produit introuvable ou retiré. <a href="index.html#catalogue"><u>Retour au catalogue</u></a>';
+  }
+
+  if (!/^[0-9a-f-]{36}$/i.test(id)) { notFound(); return; }
+
+  get("shop_settings?select=key,value&key=in.(brand_name,affiliate_notice)").then(function (rows) {
+    rows.forEach(function (r) {
+      if (r.key === "brand_name" && r.value) $("brand").textContent = r.value;
+      if (r.key === "affiliate_notice" && r.value) $("aff").textContent = r.value;
+    });
+  }).catch(function () {});
+
+  get("shop_products?select=id,title,description,image_url,price_eur,partner_name,affiliate_url,is_demo,shop_categories(name)" +
+      "&id=eq." + id + "&active=eq.true").then(function (rows) {
+    if (!rows.length) { notFound(); return; }
+    var p = rows[0];
+    document.title = p.title + " · " + $("brand").textContent;
+    $("title").textContent = p.title;
+    $("cat").textContent = p.shop_categories ? p.shop_categories.name : "Produit";
+    if (p.is_demo) $("demo").classList.remove("hide");
+    $("partner").textContent = p.partner_name ? "Proposé par " + p.partner_name : "";
+    $("price").textContent = p.price_eur != null ? fmt.format(Number(p.price_eur)) : "Prix chez le partenaire";
+    $("desc").textContent = p.description || "";
+
+    var pic = $("pic");
+    if (p.image_url && /^https:\/\//.test(p.image_url)) {
+      var im = new Image();
+      im.alt = p.title;
+      im.referrerPolicy = "no-referrer";
+      im.onerror = function () { pic.textContent = "🛍️"; };
+      im.src = p.image_url;
+      pic.appendChild(im);
+    } else {
+      pic.textContent = "🛍️";
+    }
+
+    var buy = $("buy");
+    if (!p.is_demo && p.affiliate_url && /^https:\/\//.test(p.affiliate_url)) {
+      var a = document.createElement("a");
+      a.className = "btn btn-p buy";
+      a.href = p.affiliate_url;
+      a.target = "_blank";
+      a.rel = "sponsored nofollow noopener";
+      a.textContent = "Voir l'offre chez " + (p.partner_name || "le partenaire");
+      buy.appendChild(a);
+    } else {
+      var d = document.createElement("div");
+      d.className = "off";
+      d.textContent = p.is_demo
+        ? "Produit de démonstration : aucun lien d'achat."
+        : "Le lien d'achat sera bientôt disponible.";
+      buy.appendChild(d);
+    }
+
+    $("state").classList.add("hide");
+    $("view").classList.remove("hide");
+  }).catch(function () {
+    $("state").textContent = "Impossible de charger le produit. Réessaie plus tard.";
+  });
+})();
+</script>
+</body>
+    </html>
