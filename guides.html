@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Guides · Ma Boutique</title>
+<meta name="theme-color" content="#1d3557">
+<link rel="stylesheet" href="css/style.css">
+<style>
+.pg{max-width:700px;margin:16px auto;padding:0 16px 40px}
+.gc{display:block;background:#fff;border:1px solid var(--bd);border-radius:16px;padding:16px;margin-bottom:12px}
+.gc h3{margin:0 0 6px;font-size:1.1rem;line-height:1.3}
+.art h1{font-size:1.6rem;line-height:1.25;margin:6px 0}
+.art h3{margin:22px 0 6px;font-size:1.1rem}
+.art p,.art li{line-height:1.7}
+.back{display:inline-block;margin-bottom:10px;color:var(--mu);font-size:.92rem}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="brand" id="brand" href="index.html">Ma Boutique</a>
+  <nav class="nav"><a href="index.html#catalogue">Catalogue</a><a href="guides.html">Guides</a></nav>
+</div></header>
+
+<div class="pg">
+  <div id="list">
+    <h1 style="margin:6px 0 4px">Guides pratiques</h1>
+    <p class="meta">Des conseils concrets pour bien choisir et bien utiliser vos outils.</p>
+    <div id="items"><p class="meta">Chargement…</p></div>
+  </div>
+
+  <div id="article" class="hide">
+    <a class="back" href="guides.html">← Tous les guides</a>
+    <div class="art">
+      <h1 id="atitle"></h1>
+      <p id="adate" class="meta"></p>
+      <div id="abody"></div>
+    </div>
+  </div>
+</div>
+
+<script src="js/config.js"></script>
+<script>
+(function () {
+  var C = window.KOLINK_CONFIG || {};
+  var BASE = (C.SUPABASE_URL || "") + "/rest/v1/";
+  var HEAD = { apikey: C.SUPABASE_KEY || "" };
+  var $ = function (i) { return document.getElementById(i); };
+  var slug = new URLSearchParams(location.search).get("g") || "";
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function get(path) {
+    return fetch(BASE + path, { headers: HEAD }).then(function (r) {
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return r.json();
+    });
+  }
+  function day(d) {
+    return d ? new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : "";
+  }
+
+  function render(body) {
+    var out = [], list = null, para = [];
+    function flushPara() {
+      if (para.length) { out.push("<p>" + esc(para.join(" ")) + "</p>"); para = []; }
+    }
+    function flushList() {
+      if (list) {
+        out.push("<ul>" + list.map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("") + "</ul>");
+        list = null;
+      }
+    }
+    String(body || "").split("\n").forEach(function (raw) {
+      var l = raw.replace(/\s+$/, "");
+      if (!l.trim()) { flushPara(); flushList(); return; }
+      if (l.indexOf("## ") === 0) { flushPara(); flushList(); out.push("<h3>" + esc(l.slice(3)) + "</h3>"); return; }
+      if (l.indexOf("- ") === 0) { flushPara(); list = list || []; list.push(l.slice(2)); return; }
+      flushList();
+      para.push(l.trim());
+    });
+    flushPara();
+    flushList();
+    return out.join("");
+  }
+
+  get("shop_settings?select=key,value&key=eq.brand_name").then(function (rows) {
+    if (rows[0] && rows[0].value) $("brand").textContent = rows[0].value;
+  }).catch(function () {});
+
+  function notFound() {
+    $("list").className = "";
+    $("article").className = "hide";
+    $("items").innerHTML = '<p class="meta">Guide introuvable ou retiré. <a href="guides.html"><u>Voir tous les guides</u></a></p>';
+  }
+
+  if (slug) {
+    if (!/^[a-z0-9-]{3,80}$/.test(slug)) { notFound(); return; }
+    get("shop_guides?select=title,body,created_at&slug=eq." + slug + "&published=eq.true").then(function (rows) {
+      if (!rows.length) { notFound(); return; }
+      var g = rows[0];
+      document.title = g.title + " · " + $("brand").textContent;
+      $("atitle").textContent = g.title;
+      $("adate").textContent = day(g.created_at);
+      $("abody").innerHTML = render(g.body);
+      $("list").className = "hide";
+      $("article").className = "";
+    }).catch(function () {
+      $("items").innerHTML = '<p class="meta">Impossible de charger ce guide. Réessaie plus tard.</p>';
+    });
+  } else {
+    get("shop_guides?select=slug,title,summary,created_at&published=eq.true&order=created_at.desc&limit=50").then(function (rows) {
+      if (!rows.length) { $("items").innerHTML = '<div class="empty">Les premiers guides arrivent bientôt.</div>'; return; }
+      $("items").innerHTML = rows.map(function (g) {
+        return '<a class="gc" href="guides.html?g=' + encodeURIComponent(g.slug) + '"><h3>' + esc(g.title) + "</h3>" +
+          (g.summary ? "<p style=\"margin:0 0 6px\">" + esc(g.summary) + "</p>" : "") +
+          '<span class="meta">' + esc(day(g.created_at)) + "</span></a>";
+      }).join("");
+    }).catch(function () {
+      $("items").innerHTML = '<p class="meta">Impossible de charger les guides. Réessaie plus tard.</p>';
+    });
+  }
+})();
+</script>
+</body>
+                     </html>
