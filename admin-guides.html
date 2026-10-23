@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Guides · Administration</title>
+<meta name="theme-color" content="#1d3557">
+<link rel="stylesheet" href="css/style.css">
+<style>
+.adm{max-width:720px;margin:16px auto;padding:0 16px 40px}
+.box{background:#fff;border:1px solid var(--bd);border-radius:14px;padding:16px;margin-bottom:14px}
+.box h3{margin:0 0 8px;font-size:1.05rem}
+label{display:block;font-weight:700;margin:12px 0 4px;font-size:.9rem}
+.chk{display:flex;gap:8px;align-items:center;font-weight:600}
+.chk input{width:auto}
+input,textarea{width:100%;border:1px solid #cfc9b9;border-radius:12px;padding:11px;font:inherit;background:#fff}
+textarea{min-height:100px;resize:vertical}
+#gb{min-height:320px}
+.full{width:100%;margin-top:14px}
+.msg{margin-top:10px;padding:10px;border-radius:12px;font-size:.9rem;word-break:break-word}
+.msg.ok{background:#e3f5ec;color:#0b5a40}
+.msg.bad{background:#fde8ea;color:#a1102a}
+.item{background:#fff;border:1px solid var(--bd);border-radius:14px;padding:12px;margin-bottom:10px}
+.item h4{margin:0 0 4px;font-size:1rem}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.btns .btn{padding:9px 14px;font-size:.88rem}
+.off{background:#e4e0d6;color:#1b2430}
+.b-del{background:#a1102a;color:#fff}
+.err{background:#fde8ea;color:#a1102a;border-color:#f3c1c8}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="brand" href="index.html">Ma Boutique</a>
+  <nav class="nav"><a href="admin.html">Administration</a><a href="guides.html">Voir les guides</a><a id="lo" href="#" class="hide">Déconnexion</a></nav>
+</div></header>
+
+<div class="adm">
+  <h1 style="margin:0 0 10px">Guides</h1>
+  <p id="state" class="notice">Chargement…</p>
+
+  <div id="login" class="box hide">
+    <h3>Connexion</h3>
+    <form id="lf" novalidate>
+      <label for="le">Email</label>
+      <input id="le" type="email" autocomplete="email">
+      <label for="lp">Mot de passe</label>
+      <input id="lp" type="password" autocomplete="current-password">
+      <button id="lb" class="btn btn-p full" type="submit">Se connecter</button>
+      <div id="lmsg" class="msg hide"></div>
+    </form>
+  </div>
+
+  <div id="app" class="hide"><div id="view"></div></div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/auth.js"></script>
+<script>
+(function () {
+  var C = window.KOLINK_CONFIG || {};
+  var $ = function (i) { return document.getElementById(i); };
+  var token = null;
+  var slugTouched = false;
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function day(d) { return d ? new Date(d).toLocaleDateString("fr-FR") : ""; }
+  function say(id, text, ok) {
+    var m = $(id);
+    if (!m) return;
+    m.textContent = text;
+    m.className = "msg " + (ok ? "ok" : "bad");
+  }
+  function note(t, bad) { return '<p class="notice' + (bad ? " err" : "") + '">' + esc(t) + "</p>"; }
+  function slugify(t) {
+    return String(t).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80);
+  }
+
+  function call(method, path, body, prefer) {
+    var h = { apikey: C.SUPABASE_KEY, Authorization: "Bearer " + token, "Content-Type": "application/json" };
+    if (prefer) h.Prefer = prefer;
+    return fetch(C.SUPABASE_URL + "/rest/v1/" + path, {
+      method: method, headers: h, body: body ? JSON.stringify(body) : undefined
+    }).then(function (r) {
+      return r.text().then(function (t) {
+        var d = null;
+        try { d = JSON.parse(t); } catch (e) {}
+        if (!r.ok) throw new Error("code " + r.status + " " + t.slice(0, 120));
+        return d;
+      });
+    });
+  }
+
+  function formHtml() {
+    return '<div class="box"><h3 id="ftitle">Nouveau guide</h3><form id="gf" novalidate>' +
+      '<input type="hidden" id="gid">' +
+      '<label for="gt">Titre</label><input id="gt" maxlength="160">' +
+      '<label for="gs">Adresse du guide (lettres minuscules, chiffres et tirets)</label><input id="gs" maxlength="80">' +
+      '<label for="gsum">Résumé : une ou deux phrases (facultatif)</label><textarea id="gsum" maxlength="400"></textarea>' +
+      '<label for="gb">Texte du guide</label><textarea id="gb" maxlength="30000" placeholder="Écris ici. Une ligne vide sépare deux paragraphes."></textarea>' +
+      '<p class="meta">Pour un titre de section, commence la ligne par ## suivi d\'un espace. Pour une liste, commence chaque ligne par - suivi d\'un espace.</p>' +
+      '<label class="chk"><input type="checkbox" id="gp"> Publié (visible par les visiteurs)</label>' +
+      '<button id="gsave" class="btn btn-p full" type="submit">Enregistrer</button>' +
+      '<button id="gcancel" class="btn off full hide" type="button" data-act="cancel">Annuler la modification</button>' +
+      '<div id="gmsg" class="msg hide"></div></form></div>';
+  }
+
+  function item(g) {
+    var id = esc(g.id);
+    return '<div class="item"><h4>' + esc(g.title) + '</h4><div class="meta">' + esc(day(g.created_at)) + " · " + esc(g.slug) + "</div>" +
+      (g.published ? '<span class="tag">Publié</span>' : '<span class="tag demo">Brouillon</span>') +
+      '<div class="btns"><button class="btn btn-p" type="button" data-act="edit" data-id="' + id + '">Modifier</button>' +
+      '<button class="btn off" type="button" data-act="toggle" data-id="' + id + '" data-to="' + (g.published ? "false" : "true") + '">' + (g.published ? "Dépublier" : "Publier") + "</button>" +
+      (g.published ? '<a class="btn off" href="guides.html?g=' + encodeURIComponent(g.slug) + '">Voir</a>' : "") +
+      '<button class="btn b-del" type="button" data-act="del" data-id="' + id + '">Supprimer</button></div></div>';
+  }
+
+  function load() {
+    $("view").innerHTML = note("Chargement…");
+    call("GET", "shop_guides?select=id,slug,title,published,created_at&order=created_at.desc&limit=100").then(function (rows) {
+      $("view").innerHTML = formHtml() + "<h3>Mes guides (" + rows.length + ")</h3>" +
+        (rows.length ? rows.map(item).join("") : note("Aucun guide pour le moment."));
+      slugTouched = false;
+    }).catch(function () {
+      $("view").innerHTML = note("Impossible de charger les guides. Réessaie plus tard.", true);
+    });
+  }
+
+  function resetForm() {
+    $("gf").reset();
+    $("gid").value = "";
+    $("ftitle").textContent = "Nouveau guide";
+    $("gcancel").className = "btn off full hide";
+    $("gmsg").className = "msg hide";
+    slugTouched = false;
+  }
+
+  function startEdit(id) {
+    call("GET", "shop_guides?select=id,slug,title,summary,body,published&id=eq." + encodeURIComponent(id)).then(function (rows) {
+      var g = rows[0];
+      if (!g) return;
+      $("gid").value = g.id;
+      $("gt").value = g.title || "";
+      $("gs").value = g.slug || "";
+      $("gsum").value = g.summary || "";
+      $("gb").value = g.body || "";
+      $("gp").checked = !!g.published;
+      $("ftitle").textContent = "Modifier le guide";
+      $("gcancel").className = "btn off full";
+      $("gmsg").className = "msg hide";
+      slugTouched = true;
+      $("gf").scrollIntoView();
+    }).catch(function () { alert("Impossible de charger ce guide."); });
+  }
+
+  function save() {
+    var id = $("gid").value;
+    var title = $("gt").value.trim();
+    var slug = $("gs").value.trim();
+    var body = $("gb").value.trim();
+    var pub = $("gp").checked;
+    if (title.length < 5) return say("gmsg", "Entre un titre (5 caractères minimum).", false);
+    if (!/^[a-z0-9-]{3,80}$/.test(slug)) return say("gmsg", "L'adresse doit contenir 3 à 80 lettres minuscules, chiffres ou tirets.", false);
+    if (pub && body.length < 300 && !confirm("Ce guide est très court (moins de 300 caractères). Le publier quand même ?")) return;
+    $("gsave").disabled = true;
+    say("gmsg", "Enregistrement…", true);
+    var data = { slug: slug, title: title, summary: $("gsum").value.trim() || null, body: body, published: pub };
+    var job = id
+      ? call("PATCH", "shop_guides?id=eq." + encodeURIComponent(id), data, "return=minimal")
+      : call("POST", "shop_guides", data, "return=minimal");
+    job.then(load).catch(function (er) {
+      var m = er && er.message ? er.message : "";
+      say("gmsg", m.indexOf("code 409") > -1 ? "Cette adresse existe déjà : change-la." : "Enregistrement impossible : " + m, false);
+      $("gsave").disabled = false;
+    });
+  }
+
+  function mutate(btn, method, path, body) {
+    btn.disabled = true;
+    call(method, path, body, "return=representation").then(function (d) {
+      if (!d || !d.length) throw new Error("refusé");
+      load();
+    }).catch(function () { btn.disabled = false; alert("Action refusée ou impossible."); });
+  }
+
+  $("view").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-act]");
+    if (!b) return;
+    var act = b.getAttribute("data-act"), id = b.getAttribute("data-id");
+    if (act === "edit") startEdit(id);
+    else if (act === "cancel") resetForm();
+    else if (act === "toggle") mutate(b, "PATCH", "shop_guides?id=eq." + encodeURIComponent(id), { published: b.getAttribute("data-to") === "true" });
+    else if (act === "del") {
+      if (!confirm("Supprimer ce guide définitivement ?")) return;
+      mutate(b, "DELETE", "shop_guides?id=eq." + encodeURIComponent(id));
+    }
+  });
+  $("view").addEventListener("input", function (e) {
+    if (e.target.id === "gs") slugTouched = true;
+    if (e.target.id === "gt" && !slugTouched && !$("gid").value) $("gs").value = slugify($("gt").value);
+  });
+  $("view").addEventListener("submit", function (e) {
+    e.preventDefault();
+    if (e.target.id === "gf") save();
+  });
+
+  $("lo").addEventListener("click", function (e) {
+    e.preventDefault();
+    KL.logout().then(function () { location.reload(); });
+  });
+  $("lf").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var em = $("le").value.trim(), pw = $("lp").value;
+    if (!em || pw.length < 6) return say("lmsg", "Entre ton email et ton mot de passe.", false);
+    $("lb").disabled = true;
+    say("lmsg", "Connexion…", true);
+    KL.login(em, pw).then(function () {
+      $("lb").disabled = false;
+      boot();
+    }).catch(function (er) {
+      say("lmsg", KL.fr(er && er.message), false);
+      $("lb").disabled = false;
+    });
+  });
+
+  function boot() {
+    KL.session().then(function (s) {
+      if (!s) { $("state").className = "hide"; $("login").className = "box"; return; }
+      token = s.access_token;
+      $("lo").className = "";
+      $("login").className = "box hide";
+      return fetch(C.SUPABASE_URL + "/rest/v1/rpc/is_admin", {
+        method: "POST",
+        headers: { apikey: C.SUPABASE_KEY, Authorization: "Bearer " + token, "Content-Type": "application/json" },
+        body: "{}"
+      }).then(function (r) { return r.ok ? r.json() : false; }).then(function (ok) {
+        if (ok !== true) {
+          $("state").textContent = "Accès réservé à l'administrateur.";
+          $("state").className = "notice err";
+          return;
+        }
+        $("state").className = "hide";
+        $("app").className = "";
+        load();
+      });
+    }).catch(function () {
+      $("state").textContent = "Impossible de vérifier ton accès. Réessaie plus tard.";
+      $("state").className = "notice err";
+    });
+  }
+  boot();
+})();
+</script>
+</body>
+  </html>
