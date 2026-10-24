@@ -13,7 +13,7 @@
 
 <header class="top"><div class="wrap">
   <a class="brand" id="brand" href="index.html">Ma Boutique</a>
-  <nav class="nav"><a href="#catalogue">Catalogue</a><a href="#affiliation">Affiliation</a></nav>
+  <nav class="nav"><a href="#catalogue">Catalogue</a><a href="guides.html">Guides</a><a href="#affiliation">Affiliation</a></nav>
 </div></header>
 
 <section class="hero"><div class="wrap">
@@ -45,6 +45,12 @@
     <div id="grid" class="grid"><div class="empty">Chargement…</div></div>
   </section>
 
+  <section id="guides" class="sec" hidden>
+    <h2>Guides pratiques</h2>
+    <div id="gl" class="grid"></div>
+    <p><a href="guides.html"><u>Voir tous les guides</u></a></p>
+  </section>
+
   <section id="affiliation" class="sec">
     <h2>Transparence sur l'affiliation</h2>
     <div class="notice" id="aff-notice">Ce site peut recevoir une commission si vous effectuez un achat via ce lien. Cela ne change pas le prix que vous payez.</div>
@@ -54,7 +60,8 @@
 
 <footer class="foot"><div class="wrap">
   <b id="fbrand">Ma Boutique</b>
-  <p class="small" id="ftag">Une sélection de produits utiles, choisis avec soin</p><p class="small"><a href="info.html?p=apropos">À propos</a> · <a href="info.html?p=contact">Contact</a> · <a href="info.html?p=mentions">Mentions légales</a> · <a href="info.html?p=confidentialite">Confidentialité</a> · <a href="info.html?p=conditions">Conditions</a> · <a href="info.html?p=affiliation">Affiliation</a> · <a href="info.html?p=cookies">Cookies</a></p>
+  <p class="small" id="ftag">Une sélection de produits utiles, choisis avec soin</p>
+  <p class="small"><a href="guides.html">Guides</a> · <a href="info.html?p=apropos">À propos</a> · <a href="info.html?p=contact">Contact</a> · <a href="info.html?p=mentions">Mentions légales</a> · <a href="info.html?p=confidentialite">Confidentialité</a> · <a href="info.html?p=conditions">Conditions</a> · <a href="info.html?p=affiliation">Affiliation</a> · <a href="info.html?p=cookies">Cookies</a></p>
 </div></footer>
 
 <script src="js/config.js"></script>
@@ -102,6 +109,17 @@
       $("cats").innerHTML = rows.map(function (c) {
         return '<button class="chip" type="button" data-cat="' + c.id + '">' + esc(c.name) + "</button>";
       }).join("");
+    }).catch(function () {});
+  }
+
+  function loadGuides() {
+    return get("shop_guides?select=slug,title,summary&published=eq.true&order=created_at.desc&limit=3").then(function (rows) {
+      if (!rows.length) return;
+      $("gl").innerHTML = rows.map(function (g) {
+        return '<a class="card" href="guides.html?g=' + encodeURIComponent(g.slug) + '"><div class="cb"><span class="tag">Guide</span><h3>' +
+          esc(g.title) + "</h3>" + (g.summary ? '<div class="meta">' + esc(g.summary) + "</div>" : "") + "</div></a>";
+      }).join("");
+      $("guides").hidden = false;
     }).catch(function () {});
   }
 
@@ -180,7 +198,8 @@
   loadSettings();
   loadCats();
   loadProducts();
+  loadGuides();
 })();
 </script>
 </body>
-  </html>
+                                                        </html>
